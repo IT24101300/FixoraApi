@@ -44,6 +44,25 @@ const paymentSchema = new mongoose.Schema(
     dueDate: { type: Date, required: true },
     lineItems: [lineItemSchema],
     refundReason: { type: String, default: '' },
+    // Bank Transfer Details
+    paySlip: {
+      fileName: { type: String, default: '' },
+      fileUrl: { type: String, default: '' },
+      uploadedAt: { type: Date, default: null },
+      reviewStatus: {
+        type: String,
+        enum: ['not_uploaded', 'pending', 'approved', 'rejected'],
+        default: 'not_uploaded',
+      },
+      reviewedAt: { type: Date, default: null },
+      reviewedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      reviewNote: { type: String, default: '' },
+    },
+    paymentNotes: { type: String, default: '' },
   },
   {
     timestamps: true,

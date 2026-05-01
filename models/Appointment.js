@@ -7,15 +7,27 @@ const appointmentSchema = new mongoose.Schema(
       ref: 'Job',
       required: [true, 'Job reference is required'],
     },
+    jobTitle: {
+      type: String,
+      default: '',
+    },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
+    customerName: {
+      type: String,
+      default: '',
+    },
     technicianId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    technicianName: {
+      type: String,
+      default: '',
     },
     scheduledAt: {
       type: Date,
