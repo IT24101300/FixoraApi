@@ -170,6 +170,9 @@ const processPayment = async (req, res, next) => {
     payment.status = 'paid';
     payment.method = method;
     payment.paidAt = new Date();
+    // Payout rule: technician gets service amount, platform gets the remainder (e.g. tax/fee).
+    payment.technicianEarnings = Math.round(Number(payment.amount) * 100) / 100;
+    payment.platformFee = Math.round((Number(payment.total) - Number(payment.amount)) * 100) / 100;
     await payment.save();
 
     res.status(200).json({ success: true, message: 'Payment processed successfully', data: payment });
@@ -317,6 +320,9 @@ const confirmPaySlip = async (req, res, next) => {
       payment.status = 'paid';
       payment.method = 'bank_transfer';
       payment.paidAt = new Date();
+      // Payout rule: technician gets service amount, platform gets the remainder (e.g. tax/fee).
+      payment.technicianEarnings = Math.round(Number(payment.amount) * 100) / 100;
+      payment.platformFee = Math.round((Number(payment.total) - Number(payment.amount)) * 100) / 100;
     } else {
       payment.status = 'failed';
       payment.method = 'bank_transfer';
@@ -368,6 +374,20 @@ const getFinanceSummary = async (req, res, next) => {
               $cond: [{ $eq: ['$status', 'failed'] }, '$total', 0],
             },
           },
+          platformEarnings: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'paid'] },
+                { $subtract: ['$total', '$amount'] },
+                0,
+              ],
+            },
+          },
+          technicianEarningsTotal: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'paid'] }, '$amount', 0],
+            },
+          },
         },
       },
     ]);
@@ -391,6 +411,8 @@ const getFinanceSummary = async (req, res, next) => {
           pendingAmount: 0,
           refundedAmount: 0,
           failedAmount: 0,
+          platformEarnings: 0,
+          technicianEarningsTotal: 0,
         },
         statusBreakdown,
       },
