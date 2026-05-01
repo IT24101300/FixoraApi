@@ -31,6 +31,10 @@ const register = async (req, res, next) => {
         phone: user.phone,
         role: user.role,
         avatarUrl: user.avatarUrl,
+        workingHours: user.workingHours,
+        availableDates: user.availableDates,
+        unavailableDates: user.unavailableDates,
+        specializations: user.specializations,
         token,
       },
     });
@@ -66,6 +70,10 @@ const login = async (req, res, next) => {
         phone: user.phone,
         role: user.role,
         avatarUrl: user.avatarUrl,
+        workingHours: user.workingHours,
+        availableDates: user.availableDates,
+        unavailableDates: user.unavailableDates,
+        specializations: user.specializations,
         token,
       },
     });
@@ -95,10 +103,27 @@ const getMe = async (req, res, next) => {
 // PUT /auth/profile
 const updateProfile = async (req, res, next) => {
   try {
-    const { name, phone, avatarUrl } = req.body;
+    const { name, email, phone, avatarUrl, specializations } = req.body;
+    
+    // If updating email, check for duplicates
+    if (email) {
+      const existingUser = await User.findOne({ email, _id: { $ne: req.user._id } });
+      if (existingUser) {
+        return res.status(409).json({ success: false, message: 'Email already in use' });
+      }
+    }
+
+    const updateFields = {
+      ...(name && { name }),
+      ...(email && { email }),
+      ...(phone && { phone }),
+      ...(avatarUrl && { avatarUrl }),
+      ...(specializations !== undefined && { specializations }),
+    };
+
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { $set: { name, phone, avatarUrl } },
+      { $set: updateFields },
       { new: true, runValidators: true }
     );
     res.status(200).json({ success: true, message: 'Profile updated', data: user });
@@ -133,4 +158,47 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, logout, getMe, updateProfile, changePassword };
+// ─── Update technician availability ──────────────────────────────────────────
+// PUT /auth/availability
+const updateAvailability = async (req, res, next) => {
+  try {
+    // Only technicians can update availability
+    if (req.user.role !== 'technician') {
+      return res.status(403).json({ success: false, message: 'Only technicians can set availability' });
+    }
+
+    const { workingHours, availableDates, unavailableDates } = req.body;
+    const updateData = {};
+
+    if (workingHours) {
+      if (!workingHours.startTime || !workingHours.endTime) {
+        return res.status(400).json({ success: false, message: 'Both startTime and endTime are required' });
+      }
+      updateData.workingHours = workingHours;
+    }
+
+    if (availableDates) {
+      updateData.availableDates = availableDates; // Array of "YYYY-MM-DD"
+    }
+
+    if (unavailableDates !== undefined) {
+      updateData.unavailableDates = unavailableDates; // Array of "YYYY-MM-DD"
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Availability updated successfully',
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, logout, getMe, updateProfile, changePassword, updateAvailability };

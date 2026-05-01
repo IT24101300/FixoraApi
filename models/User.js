@@ -46,6 +46,29 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Technician-specific fields
+    workingHours: {
+      startTime: {
+        type: String, // Format: "HH:mm" (24-hour, e.g., "09:00")
+        default: '09:00',
+      },
+      endTime: {
+        type: String, // Format: "HH:mm"
+        default: '17:00',
+      },
+    },
+    availableDates: {
+      type: [String], // Array of dates in YYYY-MM-DD format
+      default: [],
+    },
+    unavailableDates: {
+      type: [String], // Blackout dates in YYYY-MM-DD format
+      default: [],
+    },
+    specializations: {
+      type: [String], // Service names the technician handles
+      default: [],
+    },
   },
   {
     timestamps: true,

@@ -50,6 +50,10 @@ const jobSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    serviceName: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,
