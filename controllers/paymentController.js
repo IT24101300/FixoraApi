@@ -170,9 +170,9 @@ const processPayment = async (req, res, next) => {
     payment.status = 'paid';
     payment.method = method;
     payment.paidAt = new Date();
-    // Payout rule: technician gets service amount, platform gets the remainder (e.g. tax/fee).
-    payment.technicianEarnings = Math.round(Number(payment.amount) * 100) / 100;
-    payment.platformFee = Math.round((Number(payment.total) - Number(payment.amount)) * 100) / 100;
+    // Payout rule: technician gets total minus tax, platform keeps the tax.
+    payment.technicianEarnings = Math.round((Number(payment.total) - Number(payment.tax)) * 100) / 100;
+    payment.platformFee = Math.round(Number(payment.tax) * 100) / 100;
     await payment.save();
 
     res.status(200).json({ success: true, message: 'Payment processed successfully', data: payment });
@@ -320,9 +320,9 @@ const confirmPaySlip = async (req, res, next) => {
       payment.status = 'paid';
       payment.method = 'bank_transfer';
       payment.paidAt = new Date();
-      // Payout rule: technician gets service amount, platform gets the remainder (e.g. tax/fee).
-      payment.technicianEarnings = Math.round(Number(payment.amount) * 100) / 100;
-      payment.platformFee = Math.round((Number(payment.total) - Number(payment.amount)) * 100) / 100;
+      // Payout rule: technician gets total minus tax, platform keeps the tax.
+      payment.technicianEarnings = Math.round((Number(payment.total) - Number(payment.tax)) * 100) / 100;
+      payment.platformFee = Math.round(Number(payment.tax) * 100) / 100;
     } else {
       payment.status = 'failed';
       payment.method = 'bank_transfer';
