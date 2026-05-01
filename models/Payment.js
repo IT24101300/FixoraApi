@@ -63,6 +63,9 @@ const paymentSchema = new mongoose.Schema(
       reviewNote: { type: String, default: '' },
     },
     paymentNotes: { type: String, default: '' },
+    // Earnings split (calculated when payment status becomes 'paid')
+    technicianEarnings: { type: Number, default: 0 }, // 90% of total
+    platformFee: { type: Number, default: 0 },         // 10% of total
   },
   {
     timestamps: true,

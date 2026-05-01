@@ -9,8 +9,14 @@ const escapeRegExp = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'
 const canAccessJob = (job, user) => {
   if (!job || !user) return false;
   if (user.role === 'admin') return true;
-  if (user.role === 'technician') return job.technicianId && job.technicianId.toString() === user._id.toString();
-  if (user.role === 'customer') return job.customerId && job.customerId.toString() === user._id.toString();
+  if (user.role === 'technician') {
+    const technicianId = job.technicianId?._id || job.technicianId;
+    return technicianId && technicianId.toString() === user._id.toString();
+  }
+  if (user.role === 'customer') {
+    const customerId = job.customerId?._id || job.customerId;
+    return customerId && customerId.toString() === user._id.toString();
+  }
   return false;
 };
 
