@@ -13,6 +13,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const leaveRoutes = require('./routes/leaveRoutes');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 // ─── Connect to MongoDB ──────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/leaves', leaveRoutes);
 
 // ─── 404 Handler (must come after all routes) ────────────────────────────────
 app.use(notFound);
