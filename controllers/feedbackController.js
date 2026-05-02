@@ -1,6 +1,38 @@
 const Feedback = require('../models/Feedback');
 const Job = require('../models/Job');
 
+// ─── GET /feedback/eligible-jobs ────────────────────────────────────────────
+const getEligibleJobsForFeedback = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ success: false, message: 'Only customers can view eligible jobs for feedback' });
+    }
+
+    const jobs = await Job.find({
+      customerId: req.user._id,
+      status: 'completed',
+      technicianId: { $ne: null },
+    })
+      .select('title technicianId completedAt updatedAt createdAt')
+      .populate('technicianId', 'name email')
+      .sort({ updatedAt: -1 });
+
+    const jobIds = jobs.map((job) => job._id);
+    const existingFeedback = await Feedback.find({ jobId: { $in: jobIds } }).select('jobId');
+    const feedbackJobIdSet = new Set(existingFeedback.map((f) => f.jobId.toString()));
+
+    const eligibleJobs = jobs.filter((job) => !feedbackJobIdSet.has(job._id.toString()));
+
+    res.status(200).json({
+      success: true,
+      count: eligibleJobs.length,
+      data: eligibleJobs,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ─── POST /feedback ──────────────────────────────────────────────────────────
 const createFeedback = async (req, res, next) => {
   try {
@@ -96,4 +128,10 @@ const getMyFeedback = async (req, res, next) => {
   }
 };
 
-module.exports = { createFeedback, getFeedbackByJob, getFeedbackByTechnician, getMyFeedback };
+module.exports = {
+  createFeedback,
+  getFeedbackByJob,
+  getFeedbackByTechnician,
+  getMyFeedback,
+  getEligibleJobsForFeedback,
+};
