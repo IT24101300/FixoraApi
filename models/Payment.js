@@ -47,7 +47,8 @@ const paymentSchema = new mongoose.Schema(
     // Bank Transfer Details
     paySlip: {
       fileName: { type: String, default: '' },
-      fileUrl: { type: String, default: '' },
+      mimeType: { type: String, default: '' },
+      imageData: { type: String, default: '' },  // base64-encoded image stored in DB
       uploadedAt: { type: Date, default: null },
       reviewStatus: {
         type: String,

@@ -1,7 +1,5 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const router = express.Router();
 const {
   getPayments,
@@ -11,42 +9,27 @@ const {
   refundPayment,
   downloadInvoice,
   uploadPaySlip,
+  uploadPaySlipInline,
   confirmPaySlip,
   getFinanceSummary,
+  deletePayment,
 } = require('../controllers/paymentController');
 const { protect, authorize } = require('../middleware/auth');
 
 // Configure multer for pay slip uploads
-const uploadDir = path.join(__dirname, '../uploads/pay-slips');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    const name = path.basename(file.originalname, ext);
-    cb(null, `${name}-${uniqueSuffix}${ext}`);
-  },
-});
+// Use memory storage — file buffer is read from req.file.buffer in the controller
+// and stored as base64 directly in MongoDB (no files written to disk)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-  const allowedMimes = [
-    'image/jpeg',
-    'image/png',
-    'image/jpg',
-    'image/heic',
-    'image/heif',
-    'application/pdf',
-  ];
-  if (allowedMimes.includes(file.mimetype)) {
+  const mime = (file.mimetype || '').toLowerCase();
+  const isImage = mime.startsWith('image/');
+  const isPdf = mime === 'application/pdf';
+
+  if (isImage || isPdf) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPG, PNG, HEIC, HEIF, and PDF are allowed.'));
+    cb(new Error('Invalid file type. Only image files and PDF are allowed.'));
   }
 };
 
@@ -54,7 +37,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 10 * 1024 * 1024, // 10MB
   },
 });
 
@@ -67,7 +50,9 @@ router.get('/:id', getPaymentById);
 router.post('/:id/process', processPayment);
 router.post('/:id/refund', authorize('admin'), refundPayment);
 router.post('/:id/upload-slip', upload.single('paySlip'), uploadPaySlip);
+router.post('/:id/upload-slip-inline', uploadPaySlipInline);
 router.post('/:id/confirm-slip', authorize('admin'), confirmPaySlip);
+router.delete('/:id', authorize('admin'), deletePayment);
 router.get('/:id/invoice', downloadInvoice);
 
 module.exports = router;

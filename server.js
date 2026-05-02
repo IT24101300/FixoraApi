@@ -33,7 +33,7 @@ app.use(
 );
 
 // Parse incoming JSON request bodies
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '15mb' }));
 
 // Parse URL-encoded request bodies
 app.use(express.urlencoded({ extended: true }));
