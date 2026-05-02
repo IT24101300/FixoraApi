@@ -1,6 +1,7 @@
 const Payment = require('../models/Payment');
 const Job = require('../models/Job');
 
+
 const getPaymentWithJob = async (paymentId) => {
   return Payment.findById(paymentId).populate({
     path: 'jobId',
@@ -243,30 +244,27 @@ const uploadPaySlip = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (req.file.size > maxSize) {
-      return res.status(400).json({ success: false, message: 'File size must be less than 5MB' });
+      return res.status(400).json({ success: false, message: 'File size must be less than 10MB' });
     }
 
     // Validate file type
-    const allowedMimeTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/jpg',
-      'image/heic',
-      'image/heif',
-      'application/pdf',
-    ];
-    if (!allowedMimeTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({ success: false, message: 'Only JPG, PNG, HEIC, HEIF, and PDF files are allowed' });
+    const fileMime = (req.file.mimetype || '').toLowerCase();
+    const isImage = fileMime.startsWith('image/');
+    const isPdf = fileMime === 'application/pdf';
+    if (!isImage && !isPdf) {
+      return res.status(400).json({ success: false, message: 'Only image files and PDF are allowed' });
     }
 
     // Store file information
-    const fileUrl = `/uploads/pay-slips/${req.file.filename}`;
+    // Convert buffer to base64 and store directly in the database
+    const imageBase64 = req.file.buffer.toString('base64');
     payment.paySlip = {
       fileName: req.file.originalname,
-      fileUrl,
+      mimeType: req.file.mimetype,
+      imageData: imageBase64,
       uploadedAt: new Date(),
       reviewStatus: 'pending',
       reviewedAt: null,
@@ -276,6 +274,79 @@ const uploadPaySlip = async (req, res, next) => {
     payment.paymentNotes = notes || '';
 
     // Customer uploads proof; admin must confirm before marking as paid.
+    payment.status = 'pending';
+    payment.method = 'bank_transfer';
+    payment.paidAt = null;
+
+    await payment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Pay slip uploaded successfully',
+      data: payment,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── POST /payments/:id/upload-slip-inline ───────────────────────────────────
+const uploadPaySlipInline = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { notes, fileName, mimeType, base64Data } = req.body;
+
+    const payment = await getPaymentWithJob(id);
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ success: false, message: 'Only customer can upload bank slip' });
+    }
+    if (!canAccessPayment(payment, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to upload slip for this payment' });
+    }
+
+    if (!base64Data || typeof base64Data !== 'string') {
+      return res.status(400).json({ success: false, message: 'No slip data provided' });
+    }
+
+    const normalizedMime = (mimeType || '').toLowerCase();
+    const isImage = normalizedMime.startsWith('image/');
+    const isPdf = normalizedMime === 'application/pdf';
+    if (!isImage && !isPdf) {
+      return res.status(400).json({ success: false, message: 'Only image files and PDF are allowed' });
+    }
+
+    const rawBase64 = base64Data.includes(',')
+      ? base64Data.split(',').pop()
+      : base64Data;
+    const fileBuffer = Buffer.from(rawBase64 || '', 'base64');
+
+    if (!fileBuffer || fileBuffer.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid slip file data' });
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (fileBuffer.length > maxSize) {
+      return res.status(400).json({ success: false, message: 'File size must be less than 10MB' });
+    }
+
+    // Store base64 image data directly in MongoDB
+    const storedBase64 = rawBase64 || '';
+    const requestedName = (fileName || `slip_${Date.now()}`).toString();
+    payment.paySlip = {
+      fileName: requestedName,
+      mimeType: normalizedMime,
+      imageData: storedBase64,
+      uploadedAt: new Date(),
+      reviewStatus: 'pending',
+      reviewedAt: null,
+      reviewedBy: null,
+      reviewNote: '',
+    };
+    payment.paymentNotes = notes || '';
+
     payment.status = 'pending';
     payment.method = 'bank_transfer';
     payment.paidAt = null;
@@ -422,6 +493,24 @@ const getFinanceSummary = async (req, res, next) => {
   }
 };
 
+const deletePayment = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admin can delete invoices' });
+    }
+
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+
+    await payment.deleteOne();
+    res.json({ success: true, message: 'Invoice deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getPayments,
   getPaymentById,
@@ -430,6 +519,8 @@ module.exports = {
   refundPayment,
   downloadInvoice,
   uploadPaySlip,
+  uploadPaySlipInline,
   confirmPaySlip,
   getFinanceSummary,
+  deletePayment,
 };
