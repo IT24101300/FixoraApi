@@ -52,6 +52,11 @@ const supportTicketSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    jobId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Job',
+      default: null,
+    },
     messages: [messageSchema],
   },
   {

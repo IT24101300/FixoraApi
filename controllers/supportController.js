@@ -1,4 +1,5 @@
 const SupportTicket = require('../models/SupportTicket');
+const Job = require('../models/Job');
 
 const canAccessTicket = (ticket, user) => {
   if (!ticket || !user) return false;
@@ -55,6 +56,11 @@ const getTicketById = async (req, res, next) => {
     const ticket = await SupportTicket.findById(req.params.id)
       .populate('createdBy', 'name email')
       .populate('assignedTo', 'name email')
+      .populate({
+        path: 'jobId',
+        select: 'title serviceName technicianId',
+        populate: { path: 'technicianId', select: 'name email' },
+      })
       .populate('messages.senderId', 'name email');
 
     if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
@@ -71,13 +77,14 @@ const getTicketById = async (req, res, next) => {
 // ─── POST /support/tickets ───────────────────────────────────────────────────
 const createTicket = async (req, res, next) => {
   try {
-    const { subject, description, priority } = req.body;
+    const { subject, description, priority, jobId } = req.body;
 
     const ticket = await SupportTicket.create({
       subject,
       description,
       priority,
       createdBy: req.user._id,
+      ...(jobId ? { jobId } : {}),
     });
 
     res.status(201).json({ success: true, message: 'Support ticket created', data: ticket });

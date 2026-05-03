@@ -128,10 +128,43 @@ const getMyFeedback = async (req, res, next) => {
   }
 };
 
+// ─── GET /feedback/all  (admin only) ────────────────────────────────────────
+const getAllFeedback = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access only' });
+    }
+
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [feedbacks, total] = await Promise.all([
+      Feedback.find()
+        .populate('customerId', 'name email')
+        .populate('technicianId', 'name email')
+        .populate('jobId', 'title')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Feedback.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: feedbacks.length,
+      total,
+      data: feedbacks,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createFeedback,
   getFeedbackByJob,
   getFeedbackByTechnician,
   getMyFeedback,
   getEligibleJobsForFeedback,
+  getAllFeedback,
 };
