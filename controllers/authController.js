@@ -158,6 +158,32 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+// ─── Forgot password (direct reset) ─────────────────────────────────────────
+// POST /auth/password-reset
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email and newPassword are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
+    }
+
+    const user = await User.findOne({ email: email.trim().toLowerCase(), isActive: true }).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found for this email' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password reset successful', data: {} });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ─── Update technician availability ──────────────────────────────────────────
 // PUT /auth/availability
 const updateAvailability = async (req, res, next) => {
@@ -201,4 +227,13 @@ const updateAvailability = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, logout, getMe, updateProfile, changePassword, updateAvailability };
+module.exports = {
+  register,
+  login,
+  logout,
+  getMe,
+  updateProfile,
+  changePassword,
+  updateAvailability,
+  resetPassword,
+};
