@@ -69,6 +69,16 @@ const userSchema = new mongoose.Schema(
       type: [String], // Service names the technician handles
       default: [],
     },
+    passwordResetCodeHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   {
     timestamps: true,
